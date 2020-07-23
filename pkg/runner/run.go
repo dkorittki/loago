@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -66,7 +65,7 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 	// Read received network events from runner buffer,
 	// read network stats and parse ttfb.
 	if len(r.networkEventChan) == 0 {
-		return 0, 0, "", false, errors.New("did not receive any network events")
+		return 0, 0, "", false, NoNetworkEventFoundError
 	}
 
 	func() {
@@ -97,9 +96,10 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 		}
 	}()
 
-	if code == 0 {
-		return 0, 0, "", false, NoNetworkEventFoundError
-	}
+	// todo: Is this really needed?
+	//if code == 0 {
+	//	return 0, 0, "", false, NoNetworkEventFoundError
+	//}
 
 	return ttfb, code, msg, cached, nil
 }
@@ -116,11 +116,5 @@ func runFake(ctx context.Context, url string) (time.Duration, int, string, bool,
 
 	time.Sleep(50 * time.Millisecond)
 
-	return 50 * time.Millisecond, 200, "HTTP OK", false, nil
-}
-
-// FromContext extracts the runner instance from ctx.
-func FromContext(ctx context.Context) Runner {
-	v, _ := ctx.Value(contextKey{}).(Runner)
-	return v
+	return 50 * time.Millisecond, 200, "OK", false, nil
 }
