@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"loago-worker/internal/executor/browser"
 	"os"
 	"path/filepath"
 	"time"
@@ -18,16 +19,16 @@ const (
 )
 
 type ChromeRunner struct {
-	ID               uint
+	ID               int
 	CacheDir         string
-	runFunc          func(ctx context.Context, actions ...chromedp.Action) error
+	Executor         browser.Executor
 	networkEventChan chan *network.EventResponseReceived
 }
 
-func NewChromeRunner(id uint) *ChromeRunner {
+func NewChromeRunner(id int, e browser.Executor) *ChromeRunner {
 	r := &ChromeRunner{
 		ID:               id,
-		runFunc:          chromedp.Run,
+		Executor:         e,
 		networkEventChan: make(chan *network.EventResponseReceived, networkEventChanSize),
 	}
 
@@ -51,13 +52,13 @@ func (r *ChromeRunner) WithContext(ctx context.Context) context.Context {
 	f := cancel(runnerCtx)
 	go f()
 
-	if err := r.runFunc(runnerCtx, network.Enable()); err != nil {
+	if err := r.Executor.Run(runnerCtx, network.Enable()); err != nil {
 		panic(err)
 	}
 
 	// Create a network event listener and send them into the runner buffer.
 	// The Call() method will read and parse from it.
-	chromedp.ListenTarget(chromedpCtx, func(ev interface{}) {
+	r.Executor.ListenTarget(chromedpCtx, func(ev interface{}) {
 		if netEv, ok := ev.(*network.EventResponseReceived); ok {
 			if netEv.Type == network.ResourceTypeDocument {
 				r.networkEventChan <- netEv
@@ -75,9 +76,12 @@ func cancel(ctx context.Context) func() {
 
 		select {
 		case <-ctx.Done():
+			// close network event buffer.
+			close(r.networkEventChan)
+
 			log.Debug().
 				Str("component", "runner").
-				Uint("id", r.ID).
+				Int("id", r.ID).
 				Str("cachedir", r.CacheDir).
 				Msg("delete cache")
 
@@ -92,12 +96,9 @@ func cancel(ctx context.Context) func() {
 
 			log.Warn().
 				Str("component", "runner").
-				Uint("id", r.ID).
+				Int("id", r.ID).
 				Err(err).
 				Msg("can't delete cache")
-
-			// close network event buffer.
-			close(r.networkEventChan)
 		}
 	}
 }

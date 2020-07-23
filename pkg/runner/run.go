@@ -32,17 +32,17 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 
 	log.Debug().
 		Str("component", "runner").
-		Uint("id", r.ID).
+		Int("id", r.ID).
 		Str("type", fmt.Sprintf("%T", r)).
 		Str("url", url).
 		Msg("call url")
 
-	err := r.runFunc(ctx, network.Enable())
+	err := r.Executor.Run(ctx, network.Enable())
 	if err != nil {
 		return 0, 0, "", false, err
 	}
 
-	err = r.runFunc(ctx,
+	err = r.Executor.Run(ctx,
 		chromedp.Navigate(url),
 		chromedp.Stop(),
 	)
@@ -51,7 +51,7 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 		return 0, 0, "", false, err
 	}
 
-	err = r.runFunc(ctx, network.Disable())
+	err = r.Executor.Run(ctx, network.Disable())
 	if err != nil {
 		return 0, 0, "", false, err
 	}
@@ -76,7 +76,7 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 				if strings.TrimSuffix(ev.Response.URL, "/") == url {
 					log.Debug().
 						Str("component", "runner").
-						Uint("id", r.ID).
+						Int("id", r.ID).
 						Interface("ev", ev.Response.Timing).
 						Msg("received base url network event")
 

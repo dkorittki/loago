@@ -6,7 +6,7 @@ import (
 
 type FakeRunner uint
 
-func NewFakeRunner(id uint) *FakeRunner {
+func NewFakeRunner(id int) *FakeRunner {
 	f := FakeRunner(id)
 	return &f
 }
