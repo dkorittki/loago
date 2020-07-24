@@ -96,11 +96,6 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 		}
 	}()
 
-	// todo: Is this really needed?
-	//if code == 0 {
-	//	return 0, 0, "", false, NoNetworkEventFoundError
-	//}
-
 	return ttfb, code, msg, cached, nil
 }
 

@@ -53,10 +53,6 @@ func (r *ChromeRunner) WithContext(ctx context.Context) context.Context {
 	f := cancel(runnerCtx)
 	go f()
 
-	if err := r.Executor.Run(runnerCtx, network.Enable()); err != nil {
-		panic(err)
-	}
-
 	// Create a network event listener and send them into the runner buffer.
 	// The Call() method will read and parse from it.
 	r.Executor.ListenTarget(chromedpCtx, func(ev interface{}) {

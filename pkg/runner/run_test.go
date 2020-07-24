@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"loago-worker/internal/testing/browser"
+	"github.com/dkorittki/loago-worker/internal/testing/browser"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -63,7 +63,7 @@ func TestCall_ChromeRunner(t *testing.T) {
 		mock.MatchedBy(isChromeRunnerContext),
 		mock.MatchedBy(isNetworkEnableAction)).
 		Return(nil).
-		Twice()
+		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
@@ -94,11 +94,6 @@ func TestCall_ChromeRunner(t *testing.T) {
 
 func TestCall_ChromeRunner_ErrorOnNetworkEnable(t *testing.T) {
 	e := browser.NewEventTestExecutor()
-	e.On("Run",
-		mock.MatchedBy(isChromeRunnerContext),
-		mock.MatchedBy(isNetworkEnableAction)).
-		Return(nil).
-		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
@@ -130,7 +125,7 @@ func TestCall_ChromeRunner_ErrorOnNavigateAction(t *testing.T) {
 		mock.MatchedBy(isChromeRunnerContext),
 		mock.MatchedBy(isNetworkEnableAction)).
 		Return(nil).
-		Twice()
+		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
@@ -162,7 +157,7 @@ func TestCall_ChromeRunner_ErrorOnNetworkDisable(t *testing.T) {
 		mock.MatchedBy(isChromeRunnerContext),
 		mock.MatchedBy(isNetworkEnableAction)).
 		Return(nil).
-		Twice()
+		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
@@ -199,7 +194,7 @@ func TestCall_ChromeRunner_EmptyNetworkEventBuffer(t *testing.T) {
 		mock.MatchedBy(isChromeRunnerContext),
 		mock.MatchedBy(isNetworkEnableAction)).
 		Return(nil).
-		Twice()
+		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
@@ -237,7 +232,7 @@ func TestCall_ChromeRunner_CachedHTTPResponse(t *testing.T) {
 		mock.MatchedBy(isChromeRunnerContext),
 		mock.MatchedBy(isNetworkEnableAction)).
 		Return(nil).
-		Twice()
+		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).

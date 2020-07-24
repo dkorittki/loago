@@ -2,18 +2,16 @@ package runner
 
 import (
 	"context"
-	"loago-worker/internal/testing/browser"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/dkorittki/loago-worker/internal/testing/browser"
+
 	"github.com/chromedp/cdproto/network"
-
 	"github.com/chromedp/chromedp"
-
-	"github.com/stretchr/testify/mock"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 const TestingVal = "testing"
@@ -79,11 +77,6 @@ func TestNewChromeRunner(t *testing.T) {
 func TestChromeRunner_WithContext(t *testing.T) {
 	ctx := context.WithValue(context.Background(), TestingKey{}, TestingVal)
 	e := browser.NewEventTestExecutor()
-	e.On("Run",
-		mock.MatchedBy(isChromeRunnerContext),
-		mock.MatchedBy(isNetworkEnableAction)).
-		Return(nil).
-		Once()
 	e.On("ListenTarget",
 		mock.MatchedBy(isChromeDPContext),
 		mock.AnythingOfType("func(interface {})")).
