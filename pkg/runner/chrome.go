@@ -3,10 +3,11 @@ package runner
 import (
 	"context"
 	"fmt"
-	"loago-worker/internal/executor/browser"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/dkorittki/loago-worker/internal/executor/browser"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"

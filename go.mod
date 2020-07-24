@@ -1,4 +1,4 @@
-module loago-worker
+module github.com/dkorittki/loago-worker
 
 go 1.13
 
