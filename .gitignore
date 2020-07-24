@@ -13,3 +13,6 @@
 
 # Build directories
 bin/
+
+# IDE files
+.idea/
