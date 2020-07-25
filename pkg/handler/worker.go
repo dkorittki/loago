@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -16,6 +15,10 @@ import (
 )
 
 const ResultBufferSize = 1000
+
+var (
+	UnknownBrowserError = status.Error(codes.InvalidArgument, "unknown browser type in request")
+)
 
 type Worker struct{}
 
@@ -59,7 +62,7 @@ func (w *Worker) Run(req *api.RunRequest, srv api.Worker_RunServer) error {
 						Str("component", "worker_handler").
 						Err(err).
 						Msg(errMsg)
-					return fmt.Errorf(errMsg+": %v", err)
+					return status.Errorf(codes.Unknown, errMsg+"%v", err)
 				}
 
 				if errStatus.Code() == codes.Unavailable {
@@ -93,8 +96,7 @@ func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
 	case api.RunRequest_CHROME:
 		browserType = loadtest.BrowserTypeChrome
 	default:
-		return 0, 0, 0, 0, nil,
-			status.Errorf(codes.InvalidArgument, "invalid browser type identifier %d", req.Type)
+		return 0, 0, 0, 0, nil, UnknownBrowserError
 	}
 
 	var endpoints []*loadtest.Endpoint
