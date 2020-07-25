@@ -15,6 +15,7 @@ import (
 
 var (
 	InvalidRunnerTypeError = errors.New("invalid runner type")
+	InvalidWaitBoundaries  = errors.New("max wait duration is bigger than min wait duration")
 )
 
 type Service struct{}
@@ -95,7 +96,10 @@ func schedule(ctx context.Context, id int, endpoints []*Endpoint, minWait, maxWa
 	defer wg.Done()
 
 	for {
-		sleepBetween(minWait, maxWait)
+		err := sleepBetween(minWait, maxWait)
+		if err != nil {
+			return err
+		}
 
 		select {
 		default:
@@ -139,14 +143,17 @@ func schedule(ctx context.Context, id int, endpoints []*Endpoint, minWait, maxWa
 	}
 }
 
-func sleepBetween(min, max time.Duration) {
+func sleepBetween(min, max time.Duration) error {
 	var z time.Duration
 
-	if max == min {
+	if min == max {
 		z = min
+	} else if min > max {
+		return InvalidWaitBoundaries
 	} else {
 		z = time.Duration(int64(min) + rand.Int63n(int64(max-min)))
 	}
 
 	time.Sleep(z)
+	return nil
 }
