@@ -109,7 +109,10 @@ func runFake(ctx context.Context, url string) (time.Duration, int, string, bool,
 		Str("url", url).
 		Msg("call url")
 
-	time.Sleep(50 * time.Millisecond)
-
-	return 50 * time.Millisecond, 200, "OK", false, nil
+	select {
+	case <-time.After(50 * time.Millisecond):
+		return 50 * time.Millisecond, 200, "OK", false, nil
+	case <-ctx.Done():
+		return 0, 0, "", false, context.Canceled
+	}
 }
