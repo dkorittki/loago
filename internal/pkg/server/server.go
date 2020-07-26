@@ -7,7 +7,9 @@ import (
 
 	"github.com/dkorittki/loago-worker/internal/pkg/handler"
 	"github.com/dkorittki/loago-worker/pkg/api/v1"
+	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	grpcvalidator "github.com/grpc-ecosystem/go-grpc-middleware/validator"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -54,7 +56,14 @@ func newWorkerServer(cfg *Config, handler api.WorkerServer, listener net.Listene
 	}
 
 	if cfg.Secret != "" {
-		opts = append(opts, grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(authenticate(cfg.Secret))))
+		opts = append(opts, grpc.StreamInterceptor(grpcmiddleware.ChainStreamServer(
+			grpcauth.StreamServerInterceptor(authenticate(cfg.Secret)),
+			grpcvalidator.StreamServerInterceptor(),
+		)))
+	} else {
+		opts = append(opts, grpc.StreamInterceptor(
+			grpcvalidator.StreamServerInterceptor(),
+		))
 	}
 
 	server := grpc.NewServer(opts...)

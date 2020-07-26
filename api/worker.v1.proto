@@ -2,27 +2,29 @@ syntax = "proto3";
 option go_package = ".;api";
 package v1;
 
+import "github.com/mwitkow/go-proto-validators/validator.proto";
+
 service Worker {
     rpc Run(RunRequest) returns (stream EndpointResult) {}
 }
 
 message RunRequest {
     message Endpoint {
-        string url = 1;
-        uint32 weight = 2;
+        string url = 1 [(validator.field) = {regex: "^(http|https)://(.*)"}];
+        uint32 weight = 2 [(validator.field) = {int_gt: 0, int_lt: 1000}];
     }
-    repeated Endpoint endpoints = 1;
+    repeated Endpoint endpoints = 1 [(validator.field) = {repeated_count_min: 1, repeated_count_max: 1000}];
 
-    uint32 amount = 2;
+    uint32 amount = 2 [(validator.field) = {int_gt: 0, int_lt: 500}];
 
     enum BrowserType {
         FAKE = 0;
         CHROME = 1;
     }
-    BrowserType type = 3;
+    BrowserType type = 3 [(validator.field) = {is_in_enum : true}];
 
-    uint32 minWaitTime = 4;
-    uint32 maxWaitTime = 5;
+    uint32 minWaitTime = 4 [(validator.field) = {int_gt: 0, int_lt: 3600000}];
+    uint32 maxWaitTime = 5 [(validator.field) = {int_gt: 0, int_lt: 3600000}];
 }
 
 message EndpointResult {
