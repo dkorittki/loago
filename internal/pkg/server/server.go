@@ -24,17 +24,24 @@ type Config struct {
 }
 
 type WorkerServer struct {
-	Server *grpc.Server
-	config *Config
+	Server   *grpc.Server
+	config   *Config
+	listener net.Listener
 }
 
 func NewWorkerServer(cfg Config) (*WorkerServer, error) {
-	return newWorkerServer(&cfg, handler.NewWorker())
+	lis, err := net.Listen("tcp", cfg.ListenAdress)
+	if err != nil {
+		return nil, err
+	}
+
+	return newWorkerServer(&cfg, handler.NewWorker(), lis)
 }
 
-func newWorkerServer(cfg *Config, handler api.WorkerServer) (*WorkerServer, error) {
+func newWorkerServer(cfg *Config, handler api.WorkerServer, listener net.Listener) (*WorkerServer, error) {
 	s := &WorkerServer{}
 	s.config = cfg
+	s.listener = listener
 
 	var opts []grpc.ServerOption
 
@@ -58,12 +65,11 @@ func newWorkerServer(cfg *Config, handler api.WorkerServer) (*WorkerServer, erro
 }
 
 func (w *WorkerServer) Serve() error {
-	lis, err := net.Listen("tcp", w.config.ListenAdress)
-	if err != nil {
-		return err
-	}
+	return w.Server.Serve(w.listener)
+}
 
-	return w.Server.Serve(lis)
+func (w *WorkerServer) Stop() {
+	w.Server.Stop()
 }
 
 func authenticate(secret string) func(ctx context.Context) (context.Context, error) {
