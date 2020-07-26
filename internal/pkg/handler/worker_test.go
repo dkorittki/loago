@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkorittki/loago-worker/pkg/service/loadtest"
+	"github.com/dkorittki/loago-worker/internal/pkg/service/loadtest"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

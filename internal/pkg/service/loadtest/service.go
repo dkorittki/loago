@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	chromedpexecutor "github.com/dkorittki/loago-worker/internal/executor/browser"
+	chromedpexecutor "github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
 	"github.com/dkorittki/loago-worker/pkg/runner"
 
 	"github.com/rs/zerolog/log"

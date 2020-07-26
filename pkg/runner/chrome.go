@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dkorittki/loago-worker/internal/executor/browser"
+	"github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"

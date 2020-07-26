@@ -8,9 +8,8 @@ import (
 
 	"google.golang.org/grpc/codes"
 
+	loadtestservice "github.com/dkorittki/loago-worker/internal/pkg/service/loadtest"
 	"github.com/dkorittki/loago-worker/pkg/api/v1"
-	"github.com/dkorittki/loago-worker/pkg/service/loadtest"
-	loadtestservice "github.com/dkorittki/loago-worker/pkg/service/loadtest"
 	"google.golang.org/grpc/status"
 )
 
@@ -29,7 +28,7 @@ func NewWorker() *Worker {
 func (w *Worker) Run(req *api.RunRequest, srv api.Worker_RunServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	r := make(chan loadtest.EndpointResult, ResultBufferSize)
+	r := make(chan loadtestservice.EndpointResult, ResultBufferSize)
 	errChan := make(chan error)
 
 	defer func() {
@@ -84,24 +83,24 @@ func (w *Worker) Run(req *api.RunRequest, srv api.Worker_RunServer) error {
 }
 
 func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
-	loadtest.BrowserType, []*loadtest.Endpoint, error) {
+	loadtestservice.BrowserType, []*loadtestservice.Endpoint, error) {
 	minWait := time.Duration(req.MinWaitTime) * time.Millisecond
 	maxWait := time.Duration(req.MaxWaitTime) * time.Millisecond
 	amount := int(req.Amount)
 
-	var browserType loadtest.BrowserType
+	var browserType loadtestservice.BrowserType
 	switch req.Type {
 	case api.RunRequest_FAKE:
-		browserType = loadtest.BrowserTypeFake
+		browserType = loadtestservice.BrowserTypeFake
 	case api.RunRequest_CHROME:
-		browserType = loadtest.BrowserTypeChrome
+		browserType = loadtestservice.BrowserTypeChrome
 	default:
 		return 0, 0, 0, 0, nil, UnknownBrowserError
 	}
 
-	var endpoints []*loadtest.Endpoint
+	var endpoints []*loadtestservice.Endpoint
 	for _, v := range req.Endpoints {
-		e := &loadtest.Endpoint{
+		e := &loadtestservice.Endpoint{
 			URL:    v.Url,
 			Weight: uint(v.Weight),
 		}
@@ -111,7 +110,7 @@ func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
 	return minWait, maxWait, amount, browserType, endpoints, nil
 }
 
-func toRPCResponse(res *loadtest.EndpointResult) *api.EndpointResult {
+func toRPCResponse(res *loadtestservice.EndpointResult) *api.EndpointResult {
 	return &api.EndpointResult{
 		Url:               res.URL,
 		HttpStatusCode:    int32(res.HTTPStatusCode),
