@@ -17,8 +17,8 @@ func main() {
 	flag.Parse()
 
 	cfg := server.Config{
-		TlsCertPath:  *certPath,
-		TlsKeyPath:   *keyPath,
+		TLSCertPath:  *certPath,
+		TLSKeyPath:   *keyPath,
 		Secret:       *secret,
 		ListenAdress: fmt.Sprintf("%s:%d", *addr, *port),
 	}

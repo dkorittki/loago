@@ -11,6 +11,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Call executes an request on url using the runner context.
+// ctx must be a valid runner context created with WithContext method of a runner instance.
+// It returns the response time, HTTP response code, the HTTP response message an
+// a boolean indicating if the content comes from a browser cache.
+//
+// If an error occurred while performing the request an error is returned with zero values
+// on all other return values.
 func Call(ctx context.Context, url string) (time.Duration, int, string, bool, error) {
 	v := FromContext(ctx)
 
@@ -23,7 +30,7 @@ func Call(ctx context.Context, url string) (time.Duration, int, string, bool, er
 		return runFake(ctx, url)
 	}
 
-	return 0, 0, "", false, InvalidContextError
+	return 0, 0, "", false, ErrInvalidContext
 }
 
 func runChrome(ctx context.Context, url string) (time.Duration, int, string, bool, error) {
@@ -65,7 +72,7 @@ func runChrome(ctx context.Context, url string) (time.Duration, int, string, boo
 	// Read received network events from runner buffer,
 	// read network stats and parse ttfb.
 	if len(r.networkEventChan) == 0 {
-		return 0, 0, "", false, NoNetworkEventFoundError
+		return 0, 0, "", false, ErrNoNetworkEventFound
 	}
 
 	func() {

@@ -1,3 +1,4 @@
+// Package loadtest provides services and mechanics for handling loadtests.
 package loadtest
 
 import (
@@ -9,21 +10,33 @@ import (
 
 	chromedpexecutor "github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
 	"github.com/dkorittki/loago-worker/pkg/runner"
-
 	"github.com/rs/zerolog/log"
 )
 
 var (
-	InvalidRunnerTypeError = errors.New("invalid runner type")
-	InvalidWaitBoundaries  = errors.New("max wait duration is bigger than min wait duration")
+	// ErrInvalidRunnerType indicates an error when an unknown runner type is given.
+	ErrInvalidRunnerType = errors.New("invalid runner type")
+
+	// ErrInvalidWaitBoundaries indicates an error when the minimum wait duration takes longer than the max duration.
+	ErrInvalidWaitBoundaries = errors.New("min wait duration is longer than max wait duration")
 )
 
+// Service handles the execution of load tests.
 type Service struct{}
 
+// New returns a new Service.
 func New() *Service {
 	return &Service{}
 }
 
+// Run performs continues requests on endpoints.
+// It starts a given amount of runners of type browserType (i.e. Chrome or Fake).
+// amount controls how many runners are spawned,
+// endpoints control where and how often to perform requests,
+// results is a channel on which response metrics are written into.
+//
+// This function runs as long as the context ctx is not closed.
+// Closing the context aborts running request and closes each runner.
 func (s *Service) Run(ctx context.Context,
 	browserType BrowserType,
 	endpoints []*Endpoint,
@@ -57,7 +70,7 @@ func (s *Service) Run(ctx context.Context,
 			e := chromedpexecutor.New()
 			r = runner.NewChromeRunner(i, e)
 		default:
-			return InvalidRunnerTypeError
+			return ErrInvalidRunnerType
 		}
 
 		runnerCtx := r.WithContext(ctx)
@@ -87,6 +100,9 @@ func (s *Service) Run(ctx context.Context,
 
 }
 
+// schedule repeatedly runs one runner, writing it's result in results.
+// It is meant to be used in it's own goroutine and stops
+// when the context is canceled.
 func schedule(ctx context.Context, id int, endpoints []*Endpoint, minWait, maxWait time.Duration, results chan EndpointResult, wg *sync.WaitGroup) error {
 	log.Info().
 		Str("component", "schedule").
@@ -143,13 +159,14 @@ func schedule(ctx context.Context, id int, endpoints []*Endpoint, minWait, maxWa
 	}
 }
 
+// Block for something between min and max duration.
 func sleepBetween(min, max time.Duration) error {
 	var z time.Duration
 
 	if min == max {
 		z = min
 	} else if min > max {
-		return InvalidWaitBoundaries
+		return ErrInvalidWaitBoundaries
 	} else {
 		z = time.Duration(int64(min) + rand.Int63n(int64(max-min)))
 	}

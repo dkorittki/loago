@@ -131,7 +131,7 @@ func TestServiceErrorHandling(t *testing.T) {
 
 	err := <-errChan
 
-	assert.Equal(t, status.Error(codes.Aborted, loadtest.InvalidWaitBoundaries.Error()), err)
+	assert.Equal(t, status.Error(codes.Aborted, loadtest.ErrInvalidWaitBoundaries.Error()), err)
 	assert.Len(t, srv.results, 0)
 }
 

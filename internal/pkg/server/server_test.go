@@ -74,6 +74,13 @@ func ctxWithSecret(ctx context.Context, scheme string, token string) context.Con
 	return nCtx
 }
 
+func handleConnClose(t *testing.T, conn *grpc.ClientConn) {
+	err := conn.Close()
+	if err != nil {
+		t.Logf("error on closing connection: %v", err)
+	}
+}
+
 func TestServer_NoTLS_NoSecret(t *testing.T) {
 	cfg := &Config{}
 
@@ -99,7 +106,7 @@ func TestServer_NoTLS_NoSecret(t *testing.T) {
 	ctx := context.Background()
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithInsecure())
 	require.NoError(t, err)
-	defer conn.Close()
+	defer handleConnClose(t, conn)
 
 	cl := api.NewWorkerClient(conn)
 	stream, err := cl.Run(context.Background(), testRequest)
@@ -128,8 +135,8 @@ func TestServer_NoTLS_NoSecret(t *testing.T) {
 
 func TestServer_withTLS_NoSecret(t *testing.T) {
 	cfg := &Config{
-		TlsCertPath: tlsCertPath,
-		TlsKeyPath:  tlsKeyPath,
+		TLSCertPath: tlsCertPath,
+		TLSKeyPath:  tlsKeyPath,
 	}
 
 	// start server
@@ -157,7 +164,7 @@ func TestServer_withTLS_NoSecret(t *testing.T) {
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer handleConnClose(t, conn)
 
 	cl := api.NewWorkerClient(conn)
 	stream, err := cl.Run(context.Background(), testRequest)
@@ -186,8 +193,8 @@ func TestServer_withTLS_NoSecret(t *testing.T) {
 
 func TestServer_withTLS_Unauthenticated(t *testing.T) {
 	cfg := &Config{
-		TlsCertPath: tlsCertPath,
-		TlsKeyPath:  tlsKeyPath,
+		TLSCertPath: tlsCertPath,
+		TLSKeyPath:  tlsKeyPath,
 		Secret:      secret,
 	}
 
@@ -216,7 +223,7 @@ func TestServer_withTLS_Unauthenticated(t *testing.T) {
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer handleConnClose(t, conn)
 
 	cl := api.NewWorkerClient(conn)
 	stream, err := cl.Run(ctx, testRequest)
@@ -234,8 +241,8 @@ func TestServer_withTLS_Unauthenticated(t *testing.T) {
 
 func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 	cfg := &Config{
-		TlsCertPath: tlsCertPath,
-		TlsKeyPath:  tlsKeyPath,
+		TLSCertPath: tlsCertPath,
+		TLSKeyPath:  tlsKeyPath,
 		Secret:      secret,
 	}
 
@@ -264,7 +271,7 @@ func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer handleConnClose(t, conn)
 
 	cl := api.NewWorkerClient(conn)
 	stream, err := cl.Run(ctx, testRequest)
@@ -282,8 +289,8 @@ func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 
 func TestServer_withTLS_withValidSecret(t *testing.T) {
 	cfg := &Config{
-		TlsCertPath: tlsCertPath,
-		TlsKeyPath:  tlsKeyPath,
+		TLSCertPath: tlsCertPath,
+		TLSKeyPath:  tlsKeyPath,
 		Secret:      secret,
 	}
 
@@ -312,7 +319,7 @@ func TestServer_withTLS_withValidSecret(t *testing.T) {
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer handleConnClose(t, conn)
 
 	cl := api.NewWorkerClient(conn)
 	stream, err := cl.Run(ctx, testRequest)
@@ -332,12 +339,18 @@ func TestServer_withTLS_withValidSecret(t *testing.T) {
 
 		responds = append(responds, resp)
 	}
+
+	assert.Len(t, responds, 3)
+	for _, v := range responds {
+		assert.Equal(t, int32(200), v.HttpStatusCode)
+	}
+
 }
 
 func TestServer_withInvalidTLSFile(t *testing.T) {
 	cfg := &Config{
-		TlsCertPath: tlsCertPath + "invalid",
-		TlsKeyPath:  tlsKeyPath,
+		TLSCertPath: tlsCertPath + "invalid",
+		TLSKeyPath:  tlsKeyPath,
 		Secret:      secret,
 	}
 

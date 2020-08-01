@@ -7,25 +7,38 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
-
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
+	"github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	CacheDirName         = "loago_runner"
+	// CacheDirName is the name of the global directory used for runner caches.
+	CacheDirName = "loago_runner"
+
+	// Size of network event channel buffer.
 	networkEventChanSize = 300
 )
 
+// A ChromeRunner implements the runner interface.
+// It interacts with a chrome browser via chromedp.
+// See: https://github.com/chromedp/chromedp
 type ChromeRunner struct {
-	ID               int
-	CacheDir         string
-	Executor         browser.Executor
+	// ID of this runner.
+	ID int
+
+	// Browser cache directory path.
+	CacheDir string
+
+	// Executor interface for interacting with a browser communication library.
+	Executor browser.Executor
+
+	// Buffer for storing network events received from devtools protocols.
 	networkEventChan chan *network.EventResponseReceived
 }
 
+// NewChromeRunner creates a new chrome runner instance.
 func NewChromeRunner(id int, e browser.Executor) *ChromeRunner {
 	r := &ChromeRunner{
 		ID:               id,
@@ -36,6 +49,10 @@ func NewChromeRunner(id int, e browser.Executor) *ChromeRunner {
 	return r
 }
 
+// WithContext derives a new context from ctx associated with both a runner and
+// chromedp configuration. This context can be used as a context to call the Run() method.
+// It also creates a new goroutine in background waiting for the context to be closed to
+// clean up ressources such as the cache dir.
 func (r *ChromeRunner) WithContext(ctx context.Context) context.Context {
 	cachedir := filepath.Join(os.TempDir(), CacheDirName, fmt.Sprintf("%d", r.ID))
 
@@ -71,31 +88,29 @@ func cancel(ctx context.Context) func() {
 		v := FromContext(ctx)
 		r := v.(*ChromeRunner)
 
-		select {
-		case <-ctx.Done():
-			// close network event buffer.
-			close(r.networkEventChan)
+		<-ctx.Done()
+		// close network event buffer.
+		close(r.networkEventChan)
 
-			log.Debug().
-				Str("component", "runner").
-				Int("id", r.ID).
-				Str("cachedir", r.CacheDir).
-				Msg("delete cache")
+		log.Debug().
+			Str("component", "runner").
+			Int("id", r.ID).
+			Str("cachedir", r.CacheDir).
+			Msg("delete cache")
 
-			var err error
-			for i := 0; i < 10; i++ {
-				err = os.RemoveAll(r.CacheDir)
-				if err == nil {
-					return
-				}
-				time.Sleep(200 * time.Millisecond)
+		var err error
+		for i := 0; i < 10; i++ {
+			err = os.RemoveAll(r.CacheDir)
+			if err == nil {
+				return
 			}
-
-			log.Warn().
-				Str("component", "runner").
-				Int("id", r.ID).
-				Err(err).
-				Msg("can't delete cache")
+			time.Sleep(200 * time.Millisecond)
 		}
+
+		log.Warn().
+			Str("component", "runner").
+			Int("id", r.ID).
+			Err(err).
+			Msg("can't delete cache")
 	}
 }

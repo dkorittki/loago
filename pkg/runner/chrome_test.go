@@ -43,11 +43,7 @@ func isChromeRunnerContext(ctx context.Context) bool {
 // or false if not.
 func isChromeDPContext(ctx context.Context) bool {
 	val := chromedp.FromContext(ctx)
-	if val == nil {
-		return false
-	}
-
-	return true
+	return val != nil
 }
 
 // isNetworkEnableAction checks, if a is a

@@ -217,7 +217,7 @@ func TestCall_ChromeRunner_EmptyNetworkEventBuffer(t *testing.T) {
 
 	e.AssertExpectations(t)
 	if assert.Error(t, err) {
-		assert.Equal(t, NoNetworkEventFoundError, err)
+		assert.Equal(t, ErrNoNetworkEventFound, err)
 	}
 	assert.Equal(t, time.Duration(0), ttfb)
 	assert.Equal(t, 0, code)

@@ -125,11 +125,11 @@ func TestService_Run(t *testing.T) {
 			out: output{
 				greaterOrEqual: 0,
 				lessOrEqual:    0,
-				err:            InvalidRunnerTypeError,
+				err:            ErrInvalidRunnerType,
 			},
 		},
 		{
-			name: "InvalidWaitBoundaries",
+			name: "ErrInvalidWaitBoundaries",
 			in: input{
 				minWait: 2 * time.Second,
 				maxWait: time.Second,
@@ -145,7 +145,7 @@ func TestService_Run(t *testing.T) {
 			out: output{
 				greaterOrEqual: 0,
 				lessOrEqual:    0,
-				err:            InvalidWaitBoundaries,
+				err:            ErrInvalidWaitBoundaries,
 			},
 		},
 	}

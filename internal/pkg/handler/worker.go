@@ -1,30 +1,37 @@
+// Package handler provides request handler implementations.
 package handler
 
 import (
 	"context"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
-	"google.golang.org/grpc/codes"
-
 	loadtestservice "github.com/dkorittki/loago-worker/internal/pkg/service/loadtest"
 	"github.com/dkorittki/loago-worker/pkg/api/v1"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// ResultBufferSize sets the amount of objects in the result buffer.
 const ResultBufferSize = 1000
 
 var (
-	UnknownBrowserError = status.Error(codes.InvalidArgument, "unknown browser type in request")
+	// ErrUnknownBrowser indicates an error when an unknown browser type is given.
+	ErrUnknownBrowser = status.Error(codes.InvalidArgument, "unknown browser type in request")
 )
 
+// Worker implements the gRPC worker service handler.
 type Worker struct{}
 
+// NewWorker returns a new Worker.
 func NewWorker() *Worker {
 	return &Worker{}
 }
 
+// Run handles incoming run requests. It starts a new loadtest
+// and sends the response results of the runners
+// as single messages via gRPC stream.
+// Closing the gRPC channel stops the load test and shuts all runners down.
 func (w *Worker) Run(req *api.RunRequest, srv api.Worker_RunServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -82,6 +89,7 @@ func (w *Worker) Run(req *api.RunRequest, srv api.Worker_RunServer) error {
 
 }
 
+// toServiceParams converts a gRPC API request data structure to seperate variables.
 func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
 	loadtestservice.BrowserType, []*loadtestservice.Endpoint, error) {
 	minWait := time.Duration(req.MinWaitTime) * time.Millisecond
@@ -95,7 +103,7 @@ func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
 	case api.RunRequest_CHROME:
 		browserType = loadtestservice.BrowserTypeChrome
 	default:
-		return 0, 0, 0, 0, nil, UnknownBrowserError
+		return 0, 0, 0, 0, nil, ErrUnknownBrowser
 	}
 
 	var endpoints []*loadtestservice.Endpoint
@@ -110,6 +118,7 @@ func toServiceParams(req *api.RunRequest) (time.Duration, time.Duration, int,
 	return minWait, maxWait, amount, browserType, endpoints, nil
 }
 
+// toRPCResponse converts a service endpoint result data structure to an gRPC API endpointresult
 func toRPCResponse(res *loadtestservice.EndpointResult) *api.EndpointResult {
 	return &api.EndpointResult{
 		Url:               res.URL,
