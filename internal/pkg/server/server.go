@@ -44,9 +44,6 @@ type WorkerServer struct {
 	// Server is the gRPC server.
 	Server *grpc.Server
 
-	// Config contains the server configuration.
-	config *Config
-
 	// Listener contains the network connection listener.
 	listener net.Listener
 }
@@ -61,27 +58,31 @@ func NewWorkerServer(cfg Config) (*WorkerServer, error) {
 		return nil, err
 	}
 
-	return newWorkerServer(&cfg, handler.NewWorker(), lis)
+	var cert tls.Certificate
+	if cfg.TLSCertPath != "" {
+		cert, err = tls.LoadX509KeyPair(cfg.TLSCertPath, cfg.TLSKeyPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newWorkerServer(&cert, cfg.Secret, handler.NewWorker(), lis)
 }
 
-func newWorkerServer(cfg *Config, handler api.WorkerServer, listener net.Listener) (*WorkerServer, error) {
+func newWorkerServer(cert *tls.Certificate, secret string, handler api.WorkerServer,
+	listener net.Listener) (*WorkerServer, error) {
 	s := &WorkerServer{}
-	s.config = cfg
 	s.listener = listener
 
 	var opts []grpc.ServerOption
 
-	if cfg.TLSCertPath != "" {
-		cert, err := tls.LoadX509KeyPair(cfg.TLSCertPath, cfg.TLSKeyPath)
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, grpc.Creds(credentials.NewServerTLSFromCert(&cert)))
+	if cert != nil && len(cert.Certificate) != 0 {
+		opts = append(opts, grpc.Creds(credentials.NewServerTLSFromCert(cert)))
 	}
 
-	if cfg.Secret != "" {
+	if secret != "" {
 		opts = append(opts, grpc.StreamInterceptor(grpcmiddleware.ChainStreamServer(
-			grpcauth.StreamServerInterceptor(authenticate(cfg.Secret)),
+			grpcauth.StreamServerInterceptor(authenticate(secret)),
 			grpcvalidator.StreamServerInterceptor(),
 		)))
 	} else {
