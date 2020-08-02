@@ -2,10 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -26,10 +31,8 @@ import (
 )
 
 const (
-	tlsCertPath = "../../../testdata/cert.pem"
-	tlsKeyPath  = "../../../testdata/key.pem"
-	secret      = "foobar"
-	authScheme  = "basic"
+	secret     = "foobar"
+	authScheme = "basic"
 )
 
 var (
@@ -81,13 +84,37 @@ func handleConnClose(t *testing.T, conn *grpc.ClientConn) {
 	}
 }
 
-func TestServer_NoTLS_NoSecret(t *testing.T) {
-	cfg := &Config{}
+func generateTLSCert() (tls.Certificate, error) {
+	//priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
 
-	// start server
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "localhost",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	cert, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	return tls.Certificate{Certificate: [][]byte{cert}, PrivateKey: priv}, nil
+}
+
+func TestServer_NoTLS_NoSecret(t *testing.T) {
 	bufconnListener := bufconn.Listen(1024)
 	errChan := make(chan error)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
+	s, err := newWorkerServer(nil, "", &MockHandler{}, bufconnListener)
 	require.NoError(t, err)
 	go func() {
 		errChan <- s.Serve()
@@ -134,15 +161,13 @@ func TestServer_NoTLS_NoSecret(t *testing.T) {
 }
 
 func TestServer_withTLS_NoSecret(t *testing.T) {
-	cfg := &Config{
-		TLSCertPath: tlsCertPath,
-		TLSKeyPath:  tlsKeyPath,
-	}
+	cert, err := generateTLSCert()
+	require.NoError(t, err)
 
 	// start server
 	bufconnListener := bufconn.Listen(1024)
 	errChan := make(chan error)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
+	s, err := newWorkerServer(&cert, "", &MockHandler{}, bufconnListener)
 	require.NoError(t, err)
 	go func() {
 		errChan <- s.Serve()
@@ -158,8 +183,7 @@ func TestServer_withTLS_NoSecret(t *testing.T) {
 
 	// start client
 	ctx := context.Background()
-	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
-	require.NoError(t, err)
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
@@ -192,16 +216,13 @@ func TestServer_withTLS_NoSecret(t *testing.T) {
 }
 
 func TestServer_withTLS_Unauthenticated(t *testing.T) {
-	cfg := &Config{
-		TLSCertPath: tlsCertPath,
-		TLSKeyPath:  tlsKeyPath,
-		Secret:      secret,
-	}
+	cert, err := generateTLSCert()
+	require.NoError(t, err)
 
 	// start server
 	bufconnListener := bufconn.Listen(1024)
 	errChan := make(chan error)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
+	s, err := newWorkerServer(&cert, secret, &MockHandler{}, bufconnListener)
 	require.NoError(t, err)
 	go func() {
 		errChan <- s.Serve()
@@ -217,8 +238,7 @@ func TestServer_withTLS_Unauthenticated(t *testing.T) {
 
 	// start client
 	ctx := context.Background()
-	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
-	require.NoError(t, err)
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
@@ -240,16 +260,13 @@ func TestServer_withTLS_Unauthenticated(t *testing.T) {
 }
 
 func TestServer_withTLS_withInvalidSecret(t *testing.T) {
-	cfg := &Config{
-		TLSCertPath: tlsCertPath,
-		TLSKeyPath:  tlsKeyPath,
-		Secret:      secret,
-	}
+	cert, err := generateTLSCert()
+	require.NoError(t, err)
 
 	// start server
 	bufconnListener := bufconn.Listen(1024)
 	errChan := make(chan error)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
+	s, err := newWorkerServer(&cert, secret, &MockHandler{}, bufconnListener)
 	require.NoError(t, err)
 	go func() {
 		errChan <- s.Serve()
@@ -265,8 +282,7 @@ func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 
 	// start client
 	ctx := ctxWithSecret(context.Background(), authScheme, secret+"invalid")
-	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
-	require.NoError(t, err)
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
@@ -288,16 +304,13 @@ func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 }
 
 func TestServer_withTLS_withValidSecret(t *testing.T) {
-	cfg := &Config{
-		TLSCertPath: tlsCertPath,
-		TLSKeyPath:  tlsKeyPath,
-		Secret:      secret,
-	}
+	cert, err := generateTLSCert()
+	require.NoError(t, err)
 
 	// start server
 	bufconnListener := bufconn.Listen(1024)
 	errChan := make(chan error)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
+	s, err := newWorkerServer(&cert, secret, &MockHandler{}, bufconnListener)
 	require.NoError(t, err)
 	go func() {
 		errChan <- s.Serve()
@@ -313,8 +326,7 @@ func TestServer_withTLS_withValidSecret(t *testing.T) {
 
 	// start client
 	ctx := ctxWithSecret(context.Background(), authScheme, secret)
-	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
-	require.NoError(t, err)
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
 	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
@@ -345,21 +357,4 @@ func TestServer_withTLS_withValidSecret(t *testing.T) {
 		assert.Equal(t, int32(200), v.HttpStatusCode)
 	}
 
-}
-
-func TestServer_withInvalidTLSFile(t *testing.T) {
-	cfg := &Config{
-		TLSCertPath: tlsCertPath + "invalid",
-		TLSKeyPath:  tlsKeyPath,
-		Secret:      secret,
-	}
-
-	// start server
-	bufconnListener := bufconn.Listen(1024)
-	s, err := newWorkerServer(cfg, &MockHandler{}, bufconnListener)
-
-	assert.Nil(t, s)
-	if assert.Error(t, err) {
-		assert.IsType(t, &os.PathError{}, err)
-	}
 }
