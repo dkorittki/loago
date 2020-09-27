@@ -7,14 +7,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkorittki/loago-worker/internal/pkg/service/loadtest"
+	"github.com/dkorittki/loago/internal/pkg/service/loadtest"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dkorittki/loago-worker/pkg/api/v1"
+	"github.com/dkorittki/loago/pkg/api/v1"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/metadata"
 )

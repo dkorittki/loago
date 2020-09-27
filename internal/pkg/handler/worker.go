@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	loadtestservice "github.com/dkorittki/loago-worker/internal/pkg/service/loadtest"
-	"github.com/dkorittki/loago-worker/pkg/api/v1"
+	loadtestservice "github.com/dkorittki/loago/internal/pkg/service/loadtest"
+	"github.com/dkorittki/loago/pkg/api/v1"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

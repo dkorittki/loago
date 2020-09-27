@@ -16,3 +16,8 @@ bin/
 
 # IDE files
 .idea/
+.vscode/
+
+# Test files
+test/
+testdata/

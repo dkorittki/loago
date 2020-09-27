@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dkorittki/loago-worker/internal/pkg/testing/browser"
+	"github.com/dkorittki/loago/internal/pkg/testing/browser"
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"

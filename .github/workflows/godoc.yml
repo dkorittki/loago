@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Refresh proxy
-        run : test $(curl -s -o /dev/null -w "%{http_code}" ${GOPROXY}/github.com/dkorittki/loago-worker/@v/${GITHUB_REF/refs\/tags\//}.info) -eq 200
+        run : test $(curl -s -o /dev/null -w "%{http_code}" ${GOPROXY}/github.com/dkorittki/loago/@v/${GITHUB_REF/refs\/tags\//}.info) -eq 200

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	chromedpexecutor "github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
-	"github.com/dkorittki/loago-worker/pkg/runner"
+	chromedpexecutor "github.com/dkorittki/loago/internal/pkg/executor/browser"
+	"github.com/dkorittki/loago/pkg/runner"
 	"github.com/rs/zerolog/log"
 )
 
