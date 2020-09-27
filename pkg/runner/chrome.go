@@ -9,7 +9,7 @@ import (
 
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
-	"github.com/dkorittki/loago-worker/internal/pkg/executor/browser"
+	"github.com/dkorittki/loago/internal/pkg/executor/browser"
 	"github.com/rs/zerolog/log"
 )
 

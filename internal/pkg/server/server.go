@@ -6,8 +6,8 @@ import (
 	"crypto/tls"
 	"net"
 
-	"github.com/dkorittki/loago-worker/internal/pkg/handler"
-	"github.com/dkorittki/loago-worker/pkg/api/v1"
+	"github.com/dkorittki/loago/internal/pkg/handler"
+	"github.com/dkorittki/loago/pkg/api/v1"
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcvalidator "github.com/grpc-ecosystem/go-grpc-middleware/validator"
