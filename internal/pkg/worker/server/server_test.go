@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -14,20 +15,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
-	"google.golang.org/grpc/metadata"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"google.golang.org/grpc/credentials"
-
-	"google.golang.org/grpc/test/bufconn"
-
 	"github.com/dkorittki/loago/pkg/api/v1"
+	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 const (
@@ -65,6 +62,11 @@ func (h *MockHandler) Run(_ *api.RunRequest, srv api.Worker_RunServer) error {
 	return nil
 }
 
+func (h *MockHandler) Ping(_ context.Context, _ *api.PingRequest) (*api.PingResponse, error) {
+	// unimplemented
+	return nil, errors.New("unimplemented")
+}
+
 func generateBufDialer(lis *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
 	return func(ctx context.Context, s string) (net.Conn, error) {
 		return lis.Dial()
@@ -85,7 +87,6 @@ func handleConnClose(t *testing.T, conn *grpc.ClientConn) {
 }
 
 func generateTLSCert() (tls.Certificate, error) {
-	//priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return tls.Certificate{}, err
@@ -131,7 +132,7 @@ func TestServer_NoTLS_NoSecret(t *testing.T) {
 	// start client
 	dialer := generateBufDialer(bufconnListener)
 	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithInsecure(), grpc.WithBlock())
 	require.NoError(t, err)
 	defer handleConnClose(t, conn)
 
@@ -186,7 +187,7 @@ func TestServer_withTLS_NoSecret(t *testing.T) {
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
-	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 	defer handleConnClose(t, conn)
 
@@ -241,7 +242,7 @@ func TestServer_withTLS_Unauthenticated(t *testing.T) {
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
-	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 	defer handleConnClose(t, conn)
 
@@ -285,7 +286,7 @@ func TestServer_withTLS_withInvalidSecret(t *testing.T) {
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
-	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 	defer handleConnClose(t, conn)
 
@@ -329,7 +330,7 @@ func TestServer_withTLS_withValidSecret(t *testing.T) {
 	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 
 	dialer := generateBufDialer(bufconnListener)
-	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds))
+	conn, err := grpc.DialContext(ctx, "localhost", grpc.WithContextDialer(dialer), grpc.WithTransportCredentials(creds), grpc.WithBlock())
 	require.NoError(t, err)
 	defer handleConnClose(t, conn)
 

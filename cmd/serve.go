@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/dkorittki/loago/internal/pkg/server"
+	"github.com/dkorittki/loago/internal/pkg/worker/server"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )

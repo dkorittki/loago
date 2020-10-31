@@ -5,6 +5,7 @@ package v1;
 import "github.com/mwitkow/go-proto-validators/validator.proto";
 
 service Worker {
+    rpc Ping(PingRequest) returns (PingResponse) {}
     rpc Run(RunRequest) returns (stream EndpointResult) {}
 }
 
@@ -33,4 +34,11 @@ message EndpointResult {
     string httpStatusMessage = 3;
     int32  ttfb = 4;
 	bool   cached = 5;
+}
+
+message PingRequest {}
+
+message PingResponse {
+    string srcIP = 1;
+    string message = 3;
 }

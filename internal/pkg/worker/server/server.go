@@ -6,7 +6,7 @@ import (
 	"crypto/tls"
 	"net"
 
-	"github.com/dkorittki/loago/internal/pkg/handler"
+	"github.com/dkorittki/loago/internal/pkg/worker/handler"
 	"github.com/dkorittki/loago/pkg/api/v1"
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -81,14 +81,29 @@ func newWorkerServer(cert *tls.Certificate, secret string, handler api.WorkerSer
 	}
 
 	if secret != "" {
-		opts = append(opts, grpc.StreamInterceptor(grpcmiddleware.ChainStreamServer(
-			grpcauth.StreamServerInterceptor(authenticate(secret)),
-			grpcvalidator.StreamServerInterceptor(),
-		)))
+		opts = append(opts,
+			grpc.StreamInterceptor(
+				grpcmiddleware.ChainStreamServer(
+					grpcauth.StreamServerInterceptor(authenticate(secret)),
+					grpcvalidator.StreamServerInterceptor(),
+				),
+			),
+			grpc.ChainUnaryInterceptor(
+				grpcmiddleware.ChainUnaryServer(
+					grpcauth.UnaryServerInterceptor(authenticate(secret)),
+					grpcvalidator.UnaryServerInterceptor(),
+				),
+			),
+		)
 	} else {
-		opts = append(opts, grpc.StreamInterceptor(
-			grpcvalidator.StreamServerInterceptor(),
-		))
+		opts = append(opts,
+			grpc.StreamInterceptor(
+				grpcvalidator.StreamServerInterceptor(),
+			),
+			grpc.UnaryInterceptor(
+				grpcvalidator.UnaryServerInterceptor(),
+			),
+		)
 	}
 
 	server := grpc.NewServer(opts...)
@@ -117,7 +132,7 @@ func authenticate(secret string) func(ctx context.Context) (context.Context, err
 		}
 
 		if token != secret {
-			return nil, status.Errorf(codes.PermissionDenied, "wrong auth secret")
+			return nil, status.Errorf(codes.PermissionDenied, "wrong authentication token")
 		}
 
 		return context.WithValue(ctx, authedMarker, "exists"), nil

@@ -3,8 +3,21 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/dkorittki/loago/pkg/instructor/config"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+)
+
+var (
+	cfgFile       string
+	instructorCfg *config.InstructorConfig
+	logger        = zerolog.New(
+		zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: time.RFC1123,
+		}).With().Timestamp().Logger()
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -33,9 +46,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	fmt.Println("init root called")
+	//cobra.OnInitialize(initLogger)
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {}
