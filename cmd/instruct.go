@@ -18,22 +18,20 @@ var instructor *client.Client
 // instructCmd represents the instruct command
 var instructCmd = &cobra.Command{
 	Use:   "instruct",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "loago in instructor mode",
+	Long: `Instructor mode is the client side of loago.
+It manages worker instances, fetches loadtest results
+and saves them.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Look at the subcommands 'ping' and 'run' for further
+details.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		fmt.Println("prerun instruct called")
 		initConfig()
 		initClient()
 	},
 }
 
 func init() {
-	fmt.Println("init instruct called")
 	rootCmd.AddCommand(instructCmd)
 
 	instructCmd.PersistentFlags().StringVar(&cfgFile, "config", "",

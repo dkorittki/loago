@@ -46,7 +46,5 @@ func Execute() {
 }
 
 func init() {
-	fmt.Println("init root called")
-	//cobra.OnInitialize(initLogger)
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

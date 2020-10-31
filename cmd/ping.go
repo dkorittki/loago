@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/dkorittki/loago/internal/pkg/instructor/client"
@@ -12,13 +11,10 @@ import (
 // pingCmd represents the ping command
 var pingCmd = &cobra.Command{
 	Use:   "ping",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empokjnbwers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Test connection to workers",
+	Long: `Ping tests the connectivity to workers specific in --config.
+If something is off with the TLS configuration, the authentication secret,
+or in case of network problems, this command will help.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -38,6 +34,5 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	fmt.Println("init ping called")
 	instructCmd.AddCommand(pingCmd)
 }
