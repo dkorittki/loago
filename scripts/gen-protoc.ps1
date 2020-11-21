@@ -1,1 +1,1 @@
-protoc -I .\api\ -I $Env:GOPATH\src -I $Env:GOPATH\src\github.com\google\protobuf\src .\api\worker.v1.proto --go_out=plugins=grpc:pkg/api/v1/ --govalidators_out=pkg/api/v1/
+protoc -I .\api\ -I $Env:GOPATH\src .\api\worker.v1.proto --go_out=plugins=grpc:pkg/api/v1/ --govalidators_out=pkg/api/v1/
