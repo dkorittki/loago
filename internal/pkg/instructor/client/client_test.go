@@ -58,7 +58,6 @@ func TestPing(t *testing.T) {
 	client.AddWorker("127.0.0.1", 1234, "test123", nil, dailer1)
 	client.AddWorker("127.0.0.1", 1235, "test123", nil, dailer2)
 	client.AddWorker("127.0.0.1", 1236, "test123", nil, dailer3)
-	client.AddAction("ping", Ping)
 
 	server1 := newTestServer()
 	server2 := newTestServer()
@@ -82,7 +81,7 @@ func TestPing(t *testing.T) {
 
 	logger := zerolog.New(os.Stdout)
 
-	err := client.ExecuteAction(context.Background(), "ping", &logger)
+	err := client.Ping(context.Background(), &logger)
 
 	assertOnWrappedError(t, err)
 }

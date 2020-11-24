@@ -23,26 +23,14 @@ func (e *CertificateDecodeError) Error() string {
 	return "cannot decode certificate"
 }
 
-type DialError struct {
+type ConnectError struct {
 	Err error
 }
 
-func (e *DialError) Error() string {
+func (e *ConnectError) Error() string {
 	return "cannot create connection"
 }
 
-func (e *DialError) Unwrap() error {
-	return e.Err
-}
-
-type ActionError struct {
-	Err error
-}
-
-func (e *ActionError) Error() string {
-	return "error while performing action"
-}
-
-func (e *ActionError) Unwrap() error {
+func (e *ConnectError) Unwrap() error {
 	return e.Err
 }

@@ -76,7 +76,6 @@ func initConfig() {
 
 func initClient() {
 	instructor = client.NewClient()
-	instructor.AddAction("ping", client.Ping)
 
 	for _, v := range instructorCfg.Workers {
 		certBytes, err := ioutil.ReadFile(v.Certificate)

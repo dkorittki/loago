@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// AuthSchemeBasic is used as the authentication method description
+// AuthSchemeBasic is used as the authentication method description.
 const AuthSchemeBasic = "basic"
 
 // Worker represents the configuration and connection of a Worker.
@@ -27,24 +27,26 @@ type Worker struct {
 	dialer      func(context.Context, string) (net.Conn, error)
 }
 
-type ActionFunc func(context.Context, *zerolog.Logger, api.WorkerClient) error
-
 // Client is a instructor client.
 type Client struct {
 	Workers  []Worker
-	Actions  map[string]ActionFunc
 	certPool *x509.CertPool
 }
 
+// NewClient returns a new client.
 func NewClient() *Client {
 	var client Client
 
 	client.certPool = x509.NewCertPool()
-	client.Actions = make(map[string]ActionFunc)
 
 	return &client
 }
 
+// AddWorker adds a new worker to the client.
+// A worker is defined by it's connection attributes,
+// which are it's ip address, port, a token secret,
+// a TLS certificate, and an optional dialer function, which mainly serves
+// for testing purposes.
 func (c *Client) AddWorker(
 	adress string,
 	port int,
@@ -73,63 +75,63 @@ func (c *Client) AddWorker(
 	return nil
 }
 
-func (c *Client) AddAction(key string, action ActionFunc) {
-	c.Actions[key] = action
-}
-
-func (c *Client) ExecuteAction(
-	ctx context.Context,
-	key string,
-	logger *zerolog.Logger) error {
-
-	var clients []api.WorkerClient
-
+// Ping serially pings every Worker.
+func (c *Client) Ping(ctx context.Context, logger *zerolog.Logger) error {
 	for _, w := range c.Workers {
-		opts := []grpc.DialOption{grpc.WithBlock()}
-
-		if w.Certificate != nil {
-			creds := credentials.NewClientTLSFromCert(c.certPool, "")
-			opts = append(opts, grpc.WithTransportCredentials(creds))
-		} else {
-			opts = append(opts, grpc.WithInsecure())
-		}
-
-		if w.dialer != nil {
-			opts = append(opts, grpc.WithContextDialer(w.dialer))
-		}
-
-		conn, err := grpc.DialContext(ctx,
-			fmt.Sprintf("%s:%d", w.Adress, w.Port), opts...)
+		conn, err := c.connect(ctx, w)
 
 		if err != nil {
-			return &DialError{err}
+			return &ConnectError{err}
 		}
 
 		defer conn.Close()
 
+		ctx = ctxWithSecret(ctx, AuthSchemeBasic, w.Secret)
 		client := api.NewWorkerClient(conn)
 
-		if w.Secret != "" {
-			ctx = ctxWithSecret(ctx, AuthSchemeBasic, w.Secret)
-		}
+		res, err := client.Ping(ctx, &api.PingRequest{})
 
-		clients = append(clients, client)
-	}
-
-	for _, client := range clients {
-		err := c.Actions[key](ctx, logger, client)
 		if err != nil {
-			return &ActionError{err}
+			return err
 		}
+
+		logger.Info().Str("response", res.Message).Msg("ping succeeded")
+
 	}
 
 	return nil
 }
 
+// connect establishes a gRPC connection to a worker and returns the
+// connection and a cancelation func for ending the connection.
+func (c *Client) connect(ctx context.Context, w Worker) (*grpc.ClientConn, error) {
+	opts := []grpc.DialOption{grpc.WithBlock()}
+
+	if w.Certificate != nil {
+		creds := credentials.NewClientTLSFromCert(c.certPool, "")
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
+
+	if w.dialer != nil {
+		opts = append(opts, grpc.WithContextDialer(w.dialer))
+	}
+
+	return grpc.DialContext(ctx,
+		fmt.Sprintf("%s:%d", w.Adress, w.Port), opts...)
+}
+
+// ctxWithSecret sets authorization metadata on
+// the returned context using a token.
 func ctxWithSecret(
 	ctx context.Context,
 	scheme string,
 	token string) context.Context {
+
+	if token == "" {
+		return ctx
+	}
 
 	md := metadata.Pairs("authorization", fmt.Sprintf("%s %v", scheme, token))
 	nCtx := metautils.NiceMD(md).ToOutgoing(ctx)
