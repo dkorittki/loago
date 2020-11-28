@@ -63,13 +63,13 @@ func initConfig() {
 		cfg, err := config.NewInstructorConfig(viper.Sub("instructor"))
 
 		if err != nil {
-			fmt.Println("Error parsing config file: ", err.Error())
+			logger.Error().Err(err).Msg("error while parsing config file")
 			os.Exit(1)
 		}
 
 		instructorCfg = cfg
 	} else {
-		fmt.Println("no config file set, abort")
+		logger.Error().Err(err).Msg("error while reading config file")
 		os.Exit(1)
 	}
 }
@@ -81,7 +81,7 @@ func initClient() {
 		certBytes, err := ioutil.ReadFile(v.Certificate)
 
 		if err != nil {
-			fmt.Println("cannot read certificate:", err.Error())
+			logger.Error().Err(err).Msg("cannot read certificate")
 			os.Exit(1)
 		}
 
@@ -89,7 +89,7 @@ func initClient() {
 		err = instructor.AddWorker(v.Adress, v.Port, v.Secret, &cert, nil)
 
 		if err != nil {
-			fmt.Println("cannot add worker to workerlist:", err.Error())
+			logger.Error().Err(err).Msg("cannot add worker to workerlist")
 			os.Exit(1)
 		}
 	}
