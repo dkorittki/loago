@@ -34,3 +34,15 @@ func (e *ConnectError) Error() string {
 func (e *ConnectError) Unwrap() error {
 	return e.Err
 }
+
+type DisconnectError struct {
+	Err error
+}
+
+func (e *DisconnectError) Error() string {
+	return "cannot close connection"
+}
+
+func (e *DisconnectError) Unwrap() error {
+	return e.Err
+}

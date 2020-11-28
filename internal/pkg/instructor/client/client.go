@@ -6,8 +6,11 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net"
+	"net/url"
+	"time"
 
 	"github.com/dkorittki/loago/pkg/api/v1"
+	"github.com/dkorittki/loago/pkg/instructor/config"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -18,6 +21,14 @@ import (
 // AuthSchemeBasic is used as the authentication method description.
 const AuthSchemeBasic = "basic"
 
+type Result struct {
+	URL               url.URL
+	HttpStatusCode    int
+	HttpStatusMessage string
+	Ttfb              time.Duration
+	Cached            bool
+}
+
 // Worker represents the configuration and connection of a Worker.
 type Worker struct {
 	Adress      string
@@ -25,11 +36,12 @@ type Worker struct {
 	Certificate *tls.Certificate
 	Secret      string
 	dialer      func(context.Context, string) (net.Conn, error)
+	connection  *grpc.ClientConn
 }
 
 // Client is a instructor client.
 type Client struct {
-	Workers  []Worker
+	Workers  []*Worker
 	certPool *x509.CertPool
 }
 
@@ -70,7 +82,44 @@ func (c *Client) AddWorker(
 		}
 	}
 
-	c.Workers = append(c.Workers, w)
+	c.Workers = append(c.Workers, &w)
+
+	return nil
+}
+
+// Connect opens a connection to every worker added to this client.
+// It closes existing connections first, then creates a new one.
+func (c *Client) Connect(ctx context.Context, logger *zerolog.Logger) error {
+	err := c.Disconnect()
+
+	if err != nil {
+		return err
+	}
+
+	for _, w := range c.Workers {
+		w.connection, err = connect(ctx, w, c.certPool)
+
+		if err != nil {
+			_ = c.Disconnect()
+			return &ConnectError{err}
+		}
+	}
+
+	return nil
+}
+
+// Disconnect closes connections to all workers belonging to this client.
+func (c *Client) Disconnect() error {
+	for _, w := range c.Workers {
+		if w.connection != nil {
+			err := w.connection.Close()
+			w.connection = nil
+
+			if err != nil {
+				return &DisconnectError{err}
+			}
+		}
+	}
 
 	return nil
 }
@@ -78,16 +127,8 @@ func (c *Client) AddWorker(
 // Ping serially pings every Worker.
 func (c *Client) Ping(ctx context.Context, logger *zerolog.Logger) error {
 	for _, w := range c.Workers {
-		conn, err := c.connect(ctx, w)
-
-		if err != nil {
-			return &ConnectError{err}
-		}
-
-		defer conn.Close()
-
 		ctx = ctxWithSecret(ctx, AuthSchemeBasic, w.Secret)
-		client := api.NewWorkerClient(conn)
+		client := api.NewWorkerClient(w.connection)
 
 		res, err := client.Ping(ctx, &api.PingRequest{})
 
@@ -95,20 +136,32 @@ func (c *Client) Ping(ctx context.Context, logger *zerolog.Logger) error {
 			return err
 		}
 
-		logger.Info().Str("response", res.Message).Msg("ping succeeded")
-
+		logger.Info().
+			Str("response", res.Message).
+			Str("worker", fmt.Sprintf("%s:%d", w.Adress, w.Port)).
+			Msg("ping succeeded")
 	}
+
+	return nil
+}
+
+// Todo: Dummy function, needs implementation.
+func (c *Client) Run(
+	ctx context.Context,
+	logger *zerolog.Logger,
+	endpoints []config.InstructorEndpoint,
+	results chan Result) error {
 
 	return nil
 }
 
 // connect establishes a gRPC connection to a worker and returns the
 // connection and a cancelation func for ending the connection.
-func (c *Client) connect(ctx context.Context, w Worker) (*grpc.ClientConn, error) {
+func connect(ctx context.Context, w *Worker, certPool *x509.CertPool) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{grpc.WithBlock()}
 
 	if w.Certificate != nil {
-		creds := credentials.NewClientTLSFromCert(c.certPool, "")
+		creds := credentials.NewClientTLSFromCert(certPool, "")
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
 		opts = append(opts, grpc.WithInsecure())

@@ -20,6 +20,11 @@ type InstructorWorkerConfig struct {
 	Secret string
 }
 
+type InstructorEndpoint struct {
+	Url    string
+	Weight int
+}
+
 // InstructorConfig represents the configuration structure for
 // instructor mode
 type InstructorConfig struct {
@@ -27,6 +32,12 @@ type InstructorConfig struct {
 	// Workers is a list of worker targets a Loago instance in instructor mode
 	// should reach out to for requesting load tests
 	Workers []InstructorWorkerConfig
+
+	// Endpoints called by workers.
+	Endpoints []InstructorEndpoint
+
+	// Number of users to simulate across all workers.
+	Users int
 }
 
 func NewInstructorConfig(v *viper.Viper) (*InstructorConfig, error) {
