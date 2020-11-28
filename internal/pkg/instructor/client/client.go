@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/dkorittki/loago/pkg/api/v1"
@@ -22,7 +25,7 @@ import (
 const AuthSchemeBasic = "basic"
 
 type Result struct {
-	URL               url.URL
+	URL               *url.URL
 	HttpStatusCode    int
 	HttpStatusMessage string
 	Ttfb              time.Duration
@@ -39,16 +42,20 @@ type Worker struct {
 	connection  *grpc.ClientConn
 }
 
+func (w *Worker) String() string {
+	return fmt.Sprintf("%s:%d", w.Adress, w.Port)
+}
+
 // Client is a instructor client.
 type Client struct {
-	Workers  []*Worker
-	certPool *x509.CertPool
+	Workers        []*Worker
+	certPool       *x509.CertPool
+	activeRequests uint
 }
 
 // NewClient returns a new client.
 func NewClient() *Client {
 	var client Client
-
 	client.certPool = x509.NewCertPool()
 
 	return &client
@@ -67,7 +74,6 @@ func (c *Client) AddWorker(
 	dialer func(context.Context, string) (net.Conn, error)) error {
 
 	var w Worker
-
 	w.Adress = adress
 	w.Port = port
 	w.Secret = secret
@@ -127,6 +133,9 @@ func (c *Client) Disconnect() error {
 // Ping serially pings every Worker.
 func (c *Client) Ping(ctx context.Context, logger *zerolog.Logger) error {
 	for _, w := range c.Workers {
+		if w.connection == nil {
+			return &InvalidConnectionError{Err: errors.New("no connection present to worker")}
+		}
 		ctx = ctxWithSecret(ctx, AuthSchemeBasic, w.Secret)
 		client := api.NewWorkerClient(w.connection)
 
@@ -138,21 +147,137 @@ func (c *Client) Ping(ctx context.Context, logger *zerolog.Logger) error {
 
 		logger.Info().
 			Str("response", res.Message).
-			Str("worker", fmt.Sprintf("%s:%d", w.Adress, w.Port)).
+			Str("worker", w.String()).
 			Msg("ping succeeded")
 	}
 
 	return nil
 }
 
-// Todo: Dummy function, needs implementation.
+// Run requests every worker to perform a loadtest.
+// It returns an error on failure to initialize the
+// requests, otherwise it returns a channel in which
+// the results will be written, but returns immediately.
+//
+// logger will be used to log messages mid-process,
+// endpoints are the endpoints which workers will target to,
+// amount specifies the amount of users each worker simulates,
+// minWaitTime and maxWaitTime specify the time to wait between
+// requests in milliseconds.
+//
+// To cancel requesting the workers, ctx has to be canceled.
 func (c *Client) Run(
 	ctx context.Context,
 	logger *zerolog.Logger,
-	endpoints []config.InstructorEndpoint,
-	results chan Result) error {
+	endpoints []*config.InstructorEndpoint,
+	amount, minWaitTime, maxWaitTime int) (chan Result, error) {
 
-	return nil
+	results := make(chan Result, 1024)
+	wg := &sync.WaitGroup{}
+
+	// wait in a seperate go-routine for
+	// every request go-routine and close the result channel,
+	// once there is no more request go-routine left
+	wg.Add(len(c.Workers))
+	go func() {
+		wg.Wait()
+		logger.Debug().Msg("subroutines finished requesting, closing result channel")
+		close(results)
+	}()
+
+	for _, w := range c.Workers {
+		ctx = ctxWithSecret(ctx, AuthSchemeBasic, w.Secret)
+		client := api.NewWorkerClient(w.connection)
+		req := createRunRequest(endpoints, amount, minWaitTime, maxWaitTime)
+		workerName := w.String()
+
+		// starting a new request go-routine
+		go func() {
+			stream, err := client.Run(ctx, req)
+
+			if err != nil {
+				logger.Error().
+					Err(err).
+					Str("worker", workerName).
+					Msg("error while awaiting response from worker")
+
+				wg.Done()
+				return
+			}
+
+			for {
+				resp, err := stream.Recv()
+
+				if err != nil {
+					var msg string
+
+					if err == io.EOF {
+						msg = "connection closed by worker"
+					} else {
+						msg = "unexpected error by worker"
+					}
+
+					logger.Error().
+						Err(err).
+						Str("worker", workerName).
+						Msg(msg)
+
+					wg.Done()
+					return
+				}
+
+				r, err := createResult(resp)
+
+				if err != nil {
+					logger.Error().
+						Err(err).
+						Str("worker", workerName).
+						Msg("cannot decode response from worker")
+
+					wg.Done()
+					return
+				}
+
+				results <- *r
+			}
+		}()
+	}
+
+	return results, nil
+}
+
+func createRunRequest(e []*config.InstructorEndpoint, amount, minWait, maxWait int) *api.RunRequest {
+	req := api.RunRequest{
+		Amount:      uint32(amount),
+		MinWaitTime: uint32(minWait),
+		MaxWaitTime: uint32(maxWait),
+		Type:        api.RunRequest_CHROME,
+	}
+
+	for _, v := range e {
+		req.Endpoints = append(req.Endpoints, &api.RunRequest_Endpoint{Url: v.Url, Weight: uint32(v.Weight)})
+	}
+
+	return &req
+}
+
+func createResult(res *api.EndpointResult) (*Result, error) {
+	r := Result{
+		Cached:            res.Cached,
+		HttpStatusCode:    int(res.HttpStatusCode),
+		HttpStatusMessage: res.HttpStatusMessage,
+		Ttfb:              time.Duration(res.Ttfb),
+	}
+
+	url, err := url.Parse(res.Url)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r.URL = url
+
+	return &r, nil
 }
 
 // connect establishes a gRPC connection to a worker and returns the

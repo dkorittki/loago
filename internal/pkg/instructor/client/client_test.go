@@ -81,7 +81,12 @@ func TestPing(t *testing.T) {
 
 	logger := zerolog.New(os.Stdout)
 
-	err := client.Ping(context.Background(), &logger)
+	err := client.Connect(context.Background(), &logger)
+	assert.NoError(t, err)
 
+	err = client.Ping(context.Background(), &logger)
 	assertOnWrappedError(t, err)
+
+	err = client.Disconnect()
+	assert.NoError(t, err)
 }

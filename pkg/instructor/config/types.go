@@ -31,13 +31,19 @@ type InstructorConfig struct {
 
 	// Workers is a list of worker targets a Loago instance in instructor mode
 	// should reach out to for requesting load tests
-	Workers []InstructorWorkerConfig
+	Workers []*InstructorWorkerConfig
 
 	// Endpoints called by workers.
-	Endpoints []InstructorEndpoint
+	Endpoints []*InstructorEndpoint
 
-	// Number of users to simulate across all workers.
-	Users int
+	// Amount of users to simulate per worker
+	Amount int
+
+	// Minimum time to wait in milliseconds for the next request per worker
+	MinWait int
+
+	// Maximum time to wait in milliseconds for the next request per worker
+	MaxWait int
 }
 
 func NewInstructorConfig(v *viper.Viper) (*InstructorConfig, error) {

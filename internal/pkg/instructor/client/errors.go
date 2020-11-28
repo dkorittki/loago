@@ -46,3 +46,15 @@ func (e *DisconnectError) Error() string {
 func (e *DisconnectError) Unwrap() error {
 	return e.Err
 }
+
+type InvalidConnectionError struct {
+	Err error
+}
+
+func (e *InvalidConnectionError) Error() string {
+	return "invalid connection state"
+}
+
+func (e *InvalidConnectionError) Unwrap() error {
+	return e.Err
+}
