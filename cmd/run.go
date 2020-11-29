@@ -8,12 +8,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dkorittki/loago/pkg/instructor/databackend"
+	"github.com/dkorittki/loago/pkg/instructor/filedatabackend"
 	"github.com/spf13/cobra"
 )
 
 // runCmd represents the run command
 var (
-	runCmd = &cobra.Command{
+	dataBackend databackend.DataBackend
+	runCmd      = &cobra.Command{
 		Use:      "run",
 		Short:    "Run benchmarks",
 		Long:     "Runs benchmarks on all configured workers and store the results on disk.",
@@ -58,7 +61,10 @@ func runRun(cmd *cobra.Command, args []string) {
 	for {
 		select {
 		case res := <-results:
-			logger.Info().Interface("result", res).Msg("received result")
+			logger.Debug().Msg("Received a result")
+			if err := dataBackend.Store(&res); err != nil {
+				logger.Warn().Err(err).Msg("Problem occurred while storing the result")
+			}
 		case <-done:
 			logger.Info().Msg("Stopping requests to workers")
 			return
@@ -70,9 +76,8 @@ func preRunRun(cmd *cobra.Command, args []string) error {
 	logger.Info().Msg("Connecting to workers")
 
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	err := instructor.Connect(ctx, &logger)
 
-	if err != nil {
+	if err := instructor.Connect(ctx, &logger); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			logger.Error().Err(err).Msg("timed out connection to workers")
 		} else {
@@ -83,6 +88,16 @@ func preRunRun(cmd *cobra.Command, args []string) error {
 	}
 
 	logger.Info().Msg("Connections established!")
+	logger.Info().Str("file", instructorCfg.ResultFile).Msg("Using file to store results")
+
+	db, err := filedatabackend.New(instructorCfg.ResultFile)
+
+	if err != nil {
+		logger.Error().Err(err).Msg("Cannot open resultdata file")
+		return err
+	}
+
+	dataBackend = db
 
 	return nil
 }
@@ -98,6 +113,13 @@ func postRunRun(cmd *cobra.Command, args []string) error {
 	}
 
 	logger.Info().Msg("Connections closed!")
+	logger.Info().Str("file", instructorCfg.ResultFile).Msg("Closing file")
+
+	if dataBackend != nil {
+		if err := dataBackend.Close(); err != nil {
+			logger.Error().Err(err).Msg("Cannot close resultdata file")
+		}
+	}
 
 	return nil
 }

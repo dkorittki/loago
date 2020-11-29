@@ -44,6 +44,9 @@ type InstructorConfig struct {
 
 	// Maximum time to wait in milliseconds for the next request per worker
 	MaxWait int
+
+	// Path to file in which to store json encoded result data
+	ResultFile string
 }
 
 func NewInstructorConfig(v *viper.Viper) (*InstructorConfig, error) {

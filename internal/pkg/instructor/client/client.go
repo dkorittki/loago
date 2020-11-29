@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/dkorittki/loago/pkg/api/v1"
 	"github.com/dkorittki/loago/pkg/instructor/config"
+	"github.com/dkorittki/loago/pkg/instructor/databackend"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -23,14 +23,6 @@ import (
 
 // AuthSchemeBasic is used as the authentication method description.
 const AuthSchemeBasic = "basic"
-
-type Result struct {
-	URL               *url.URL
-	HttpStatusCode    int
-	HttpStatusMessage string
-	Ttfb              time.Duration
-	Cached            bool
-}
 
 // Worker represents the configuration and connection of a Worker.
 type Worker struct {
@@ -170,9 +162,9 @@ func (c *Client) Run(
 	ctx context.Context,
 	logger *zerolog.Logger,
 	endpoints []*config.InstructorEndpoint,
-	amount, minWaitTime, maxWaitTime int) (chan Result, error) {
+	amount, minWaitTime, maxWaitTime int) (chan databackend.Result, error) {
 
-	results := make(chan Result, 1024)
+	results := make(chan databackend.Result, 1024)
 	wg := &sync.WaitGroup{}
 
 	// wait in a seperate go-routine for
@@ -226,18 +218,7 @@ func (c *Client) Run(
 					return
 				}
 
-				r, err := createResult(resp)
-
-				if err != nil {
-					logger.Error().
-						Err(err).
-						Str("worker", workerName).
-						Msg("cannot decode response from worker")
-
-					wg.Done()
-					return
-				}
-
+				r := createResult(resp)
 				results <- *r
 			}
 		}()
@@ -261,23 +242,14 @@ func createRunRequest(e []*config.InstructorEndpoint, amount, minWait, maxWait i
 	return &req
 }
 
-func createResult(res *api.EndpointResult) (*Result, error) {
-	r := Result{
+func createResult(res *api.EndpointResult) *databackend.Result {
+	return &databackend.Result{
+		URL:               res.Url,
 		Cached:            res.Cached,
 		HttpStatusCode:    int(res.HttpStatusCode),
 		HttpStatusMessage: res.HttpStatusMessage,
 		Ttfb:              time.Duration(res.Ttfb),
 	}
-
-	url, err := url.Parse(res.Url)
-
-	if err != nil {
-		return nil, err
-	}
-
-	r.URL = url
-
-	return &r, nil
 }
 
 // connect establishes a gRPC connection to a worker and returns the
